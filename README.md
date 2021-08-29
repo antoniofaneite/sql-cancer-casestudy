@@ -1,6 +1,11 @@
 # sql-cancer-casestudy
 SQL Case Study
 
+Using the publicly available Aggregated Analysis of ClinicalTrails.gov dataset (AACT) please download this
+data and host it in a local postgres database to complete the following. Please complete each task using SQL.
+  https://aact.ctti-clinicaltrials.org/snapshots
+
+
 1. Create a view of all prospective (interventional) cancer-related clinical trials that are completed (no longer actively recruiting and not prematurely terminated) Including:  
 
 nct_id
