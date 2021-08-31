@@ -334,6 +334,7 @@ ORDER BY subjects_affected DESC;
 
 --1.2 Data Exploration; joins
 
+
 SELECT s.nct_id AS study_id, c.name AS cancer_condition, 
 	e.criteria AS inclusion_criteria, f.country AS country,
 	f.state AS state, s.source AS institution, 
@@ -368,3 +369,81 @@ GROUP BY o.count,
 		s.source,
 		d.primary_purpose
 ORDER BY sum(o.count) DESC; 
+--1494 rows affected.
+
+--2.1 Preparing data; creating general view
+
+CREATE VIEW cancer_studies_general_view AS
+SELECT s.nct_id AS study_id, c.name AS cancer_condition, 
+	e.criteria AS inclusion_criteria, f.country AS country,
+	f.state AS state, s.source AS institution, 
+	d.primary_purpose AS type_of_intervention,
+	sum(o.count) AS total_number_of_participants
+FROM (SELECT * FROM studies 
+	  WHERE study_type = 'Interventional' 
+		AND overall_status = 'Completed'
+		AND completion_date_type = 'Actual'
+		AND completion_date <= CURRENT_DATE
+		AND official_title LIKE '%ancer%%arcinoma%'
+		OR study_type = 'Interventional' 
+		AND overall_status = 'Completed'
+		AND completion_date_type IS NULL
+		AND official_title LIKE '%ancer%arcinoma%'
+		AND study_type = 'Interventional'
+		AND overall_status = 'Completed'
+		AND completion_date_type = 'Actual') AS s
+INNER JOIN conditions AS c ON c.nct_id = s.nct_id
+INNER JOIN eligibilities as e ON e.nct_id = s.nct_id
+INNER JOIN facilities as f ON f.nct_id = s.nct_id 
+INNER JOIN designs AS d ON d.nct_id = s.nct_id
+INNER JOIN outcome_counts AS o ON o.nct_id = s.nct_id
+WHERE f.country = 'United States'
+	AND o.count IS NOT NULL
+GROUP BY o.count,
+		s.nct_id,
+		c.name,
+		e.criteria,
+		f.country,
+		f.state,
+		s.source,
+		d.primary_purpose
+ORDER BY sum(o.count) DESC; 
+
+--2.2 Preparing data; view for all observed adverse events and outcomes recorded for each trial
+Reported_events table subjects_affected, evente_count columns 
+
+CREATE VIEW adverse_events_outcomes AS
+SELECT cs.study_id, rp.event_type AS adverse_outcome, 
+	rp.subjects_affected AS participants_affected
+FROM reported_events AS rp
+INNER JOIN cancer_studies_general_view AS cs 
+	ON rp.nct_id = cs.study_id
+GROUP BY cs.study_id, rp.subjects_affected, rp.event_type
+ORDER BY rp.subjects_affected DESC; 
+
+
+
+--2.3 Preparing data; trial that had the most patients with a complete response to the intervention of study
+
+
+SELECT nct_id, category, units, param_type, 
+param_value
+FROM outcome_measurements
+WHERE category LIKE '%uccess%'
+ORDER BY param_value DESC
+LIMIT 40; 
+
+
+--2.4 Preparing data; trials that started after 2005 and ended before 2010
+
+SELECT cs.study_id, studies.start_date,
+	studies.completion_date 
+FROM studies 
+JOIN cancer_studies_general_view AS cs 
+	ON studies.nct_id = cs.study_id
+	WHERE studies.start_date >= '2006-01-01'
+	AND studies.completion_date <= '2010-01-01'
+	ORDER BY studies.start_date;
+	
+--2.5 Preparing data; Distribution of trials by state
+
