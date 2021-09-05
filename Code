@@ -608,11 +608,11 @@ LIMIT 20;
 
 --2.4 Preparing data; trials that started after 2005 and ended before 2010
 
-SELECT cs.study_id, studies.start_date,
+SELECT cs.nct_id, studies.start_date,
 	studies.completion_date 
 FROM studies 
 JOIN cancer_studies_general_view AS cs 
-	ON studies.nct_id = cs.study_id
+	ON studies.nct_id = cs.nct_id
 	WHERE studies.start_date >= '2006-01-01'
 	AND studies.completion_date <= '2010-01-01'
 	ORDER BY studies.start_date;
