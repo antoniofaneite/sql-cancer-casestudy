@@ -595,25 +595,15 @@ SELECT cs.nct_id, om.description,
 	om.units, om.param_value
 FROM outcome_measurements AS om,
 	cancer_studies_general_view AS cs
-LIMIT 10;
+LIMIT 5;
 
 SELECT nct_id, category, units, param_type, 
 param_value
 FROM outcome_measurements
-WHERE category LIKE '%100%adherence%'
-ORDER BY param_value DESC; 
-
-
-SELECT nct_id, category, units, param_type, 
-param_value
-FROM outcome_measurements
-WHERE category LIKE '%uccess%'
+WHERE category ILIKE 'complete response'
+	AND param_value != 'NA'
 ORDER BY param_value DESC
-LIMIT 40; 
-
-
-WHERE param_value IS NOT NULL
-ORDER BY param_value DESC
+LIMIT 20; 
 
 
 --2.4 Preparing data; trials that started after 2005 and ended before 2010
