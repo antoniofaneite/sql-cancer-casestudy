@@ -499,7 +499,7 @@ INNER JOIN outcome_counts AS o
 	ON o.nct_id = s.nct_id
 WHERE f.country = 'United States'
 	AND o.count IS NOT NULL
-	AND c.name LIKE '%ancer%';
+	AND c.name LIKE '%ancer%'
 	OR o.count IS NOT NULL
 	AND c.name LIKE '%arcinoma%'
 GROUP BY o.count,
@@ -510,37 +510,60 @@ GROUP BY o.count,
 		f.state,
 		s.source,
 		d.primary_purpose
-ORDER BY o.count DESC; 
---1494 rows affected.
+ORDER BY o.count DESC
+	LIMIT 10; 
 
 --2.1 Preparing data; creating general view
 
 CREATE VIEW cancer_studies_general_view AS
-SELECT s.nct_id, c.name AS cancer_condition, 
-	e.criteria AS inclusion_criteria, f.country AS country,
-	f.state AS state, s.source AS institution, 
+SELECT s.nct_id, 
+	c.name AS cancer_condition, 
+	e.criteria AS inclusion_criteria, 
+	f.country AS country,
+	f.state AS state, 
+	s.source AS institution, 
 	d.primary_purpose AS type_of_intervention,
-	sum(o.count) AS total_number_of_participants
-FROM (SELECT * FROM studies 
-	  WHERE study_type = 'Interventional' 
-		AND overall_status = 'Completed'
-		AND completion_date_type = 'Actual'
-		AND completion_date <= CURRENT_DATE
-		AND official_title LIKE '%ancer%%arcinoma%'
+	o.count AS total_number_of_participants
+FROM (SELECT * FROM studies
+	WHERE study_type = 'Interventional' 
+	AND overall_status = 'Completed'
+	AND completion_date_type = 'Actual'
+	AND completion_date <= CURRENT_DATE
+	AND official_title LIKE '%ancer%'
 		OR study_type = 'Interventional' 
-		AND overall_status = 'Completed'
-		AND completion_date_type IS NULL
-		AND official_title LIKE '%ancer%arcinoma%'
-		AND study_type = 'Interventional'
-		AND overall_status = 'Completed'
-		AND completion_date_type = 'Actual') AS s
-INNER JOIN conditions AS c ON c.nct_id = s.nct_id
-INNER JOIN eligibilities as e ON e.nct_id = s.nct_id
-INNER JOIN facilities as f ON f.nct_id = s.nct_id 
-INNER JOIN designs AS d ON d.nct_id = s.nct_id
-INNER JOIN outcome_counts AS o ON o.nct_id = s.nct_id
+	AND overall_status = 'Completed'
+	AND completion_date_type = 'Actual'
+	AND completion_date <= CURRENT_DATE
+	AND official_title LIKE '%arcinoma%' 
+		OR study_type = 'Interventional' 
+	AND overall_status = 'Completed'
+	AND completion_date_type IS NULL
+	AND official_title LIKE '%ancer%'
+	AND study_type = 'Interventional'
+	AND overall_status = 'Completed'
+	AND completion_date_type = 'Actual'
+		OR study_type = 'Interventional' 
+	AND overall_status = 'Completed'
+	AND completion_date_type IS NULL
+	AND official_title LIKE '%arcinoma%'
+	AND study_type = 'Interventional'
+	AND overall_status = 'Completed'
+	AND completion_date_type = 'Actual') AS s
+INNER JOIN conditions AS c 
+	ON c.nct_id = s.nct_id
+INNER JOIN eligibilities as e 
+	ON e.nct_id = s.nct_id
+INNER JOIN facilities as f 
+	ON f.nct_id = s.nct_id 
+INNER JOIN designs AS d 
+	ON d.nct_id = s.nct_id
+INNER JOIN outcome_counts AS o 
+	ON o.nct_id = s.nct_id
 WHERE f.country = 'United States'
 	AND o.count IS NOT NULL
+	AND c.name LIKE '%ancer%'
+	OR o.count IS NOT NULL
+	AND c.name LIKE '%arcinoma%'
 GROUP BY o.count,
 		s.nct_id,
 		c.name,
@@ -548,29 +571,31 @@ GROUP BY o.count,
 		f.country,
 		f.state,
 		s.source,
-		d.primary_purpose
-ORDER BY sum(o.count) DESC; 
+		d.primary_purpose;
 
 --2.2 Preparing data; view for all observed adverse events and outcomes recorded for each trial
-Reported_events table subjects_affected, evente_count columns 
+	--Reported_events table subjects_affected, evente_count columns 
 
 CREATE VIEW adverse_events_outcomes AS
-SELECT cs.study_id, rp.event_type AS adverse_outcome, 
-	rp.subjects_affected AS participants_affected
+SELECT cs.nct_id, rp.event_type AS adverse_outcome, 
+		rp.subjects_affected AS participants_affected
 FROM reported_events AS rp
 INNER JOIN cancer_studies_general_view AS cs 
-	ON rp.nct_id = cs.study_id
-GROUP BY cs.study_id, rp.subjects_affected, rp.event_type
-ORDER BY rp.subjects_affected DESC; 
+	ON rp.nct_id = cs.nct_id
+GROUP BY cs.nct_id, 
+	rp.subjects_affected, 
+	rp.event_type;
 
-
+SELECT * FROM adverse_events_outcomes
+LIMIT 10;
 
 --2.3 Preparing data; trial that had the most patients with a complete response to the intervention of study
 
-SELECT cs.study_id, om.description,
+SELECT cs.nct_id, om.description,
 	om.units, om.param_value
-FROM outcome_measurements
-LIMIT 30 ;
+FROM outcome_measurements AS om,
+	cancer_studies_general_view AS cs
+LIMIT 10;
 
 SELECT nct_id, category, units, param_type, 
 param_value
