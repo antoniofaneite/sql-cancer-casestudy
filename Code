@@ -9,17 +9,24 @@ CREATE DATABASE tempus_case_study
 	
 --Loading data
 /Library/PostgreSQL/13/pgAdmin 4.app/Contents/SharedSupport/pg_restore-host "localhost"
--port "5432" -username "postgres" 
--no-password -dbname "tempus_case_study" -clean 
--verbose "/Users/josefaneite/Downloads/20210601_clinical_trials/postgres_data.dmp";
+	-port "5432" -username "postgres" 
+	-no-password -dbname "tempus_case_study" -clean 
+	-verbose "/Users/josefaneite/Downloads/20210601_clinical_trials/postgres_data.dmp";
 
 --Alter search path
-ALTER ROLE postgres IN DATABASE tempus_case_study 
+ALTER ROLE postgres 
+IN DATABASE tempus_case_study 
 SET search_path = ctgov,public;
 \q
 
 --Preliminary exploration
---0.1 Tables:
+
+--0.1 Determining tables of interest:
+	--Query on each table to determine rows and columns of interest
+	--Query for distinct and null values
+	--Query utilizing clauses to find specific/segmented results
+
+--0.2 Tables of interest:
 	--Studies
 		--Study_type
 	--Conditions
@@ -31,32 +38,35 @@ SET search_path = ctgov,public;
 	--Reported_events
 	--Outcome_measurements
 	
---0.2 Tables:
--- Joins
+--0.3 Tables; post-exploratory analysis:
+-- Join tables
 -- Expressions
 -- Where clause expressions
--- Columns and rows arragement for grouping
+-- Columns and rows arrangement for grouping
 -- Add grouping
 -- Add having
 -- Add order by
--- Tidy up code
-
+-- Tidy up/Debugging code
 
 --1.0 Data Exploration
-SELECT * FROM studies LIMIT (10); 
+SELECT * 
+FROM studies 
+LIMIT (10); 
 --Exploring columns
 
 SELECT COUNT(*) as total_number_of_studies 
-FROM studies LIMIT 10;
+FROM studies;
 -- 379094 studies in database
 
-SELECT source FROM studies; 
+SELECT source 
+FROM studies; 
 --Specific study site
 
 SELECT DISTINCT study_type 
 FROM studies; 
 
-SELECT * FROM studies
+SELECT * 
+FROM studies
 WHERE study_type IS NULL; 
 --No null values
 --Looking for 'Inverventional' studies 
@@ -64,42 +74,58 @@ WHERE study_type IS NULL;
 SELECT DISTINCT overall_status  
 FROM studies;  
 
-SELECT * FROM studies
+SELECT * 
+FROM studies
 WHERE overall_status IS NULL;
--- #No null values
--- #Looking for Completed studies 
+-- No null values in overall status 
+-- Looking for Completed studies 
 
 SELECT DISTINCT completion_date_type  
 FROM studies;
 
-SELECT * FROM studies
-WHERE completion_date_type IS NULL
-AND official_title LIKE '%ancer%'
-AND overall_status = 'Completed'
-AND completion_date_type = 'Actual'
-OR completion_date_type IS NULL 
-AND official_title LIKE '%arcinoma%'
-AND overall_status = 'Completed'
-AND completion_date_type = 'Actual';
-
---there are no NULL values in dataset
---Looking for 'actual' completion studies
+SELECT * 
+FROM studies
+WHERE (official_title LIKE '%ancer%'
+	OR official_title LIKE '%arcinoma%')
+	AND completion_date_type IS NULL
+	AND overall_status = 'Completed'
+	AND completion_date_type = 'Actual';
+	
+/* there are no NULL values in completion date column
+	Looking for 'actual' completion studies
+	Assuming interest studies contain 'cancer' and 'carcinoma'
+	I would communicate with supervisor to determine this assumption is correct */
 
 SELECT * FROM conditions;
 
-SELECT DISTINCT name FROM conditions;
+SELECT DISTINCT name 
+FROM conditions;
+
+SELECT name 
+FROM conditions
+WHERE name IS NULL;
+--No null values
 --Condition's names
 
-SELECT * FROM eligibilities; 
+SELECT * 
+FROM eligibilities; 
 
-SELECT criteria FROM eligibilities; 
+SELECT criteria 
+FROM eligibilities;
+
+SELECT criteria 
+FROM eligibilities
+WHERE criteria IS NULL;
+--No null values
 --Inclusion/Exclusion criteria
  
-SELECT * FROM facilities; 
+SELECT * 
+FROM facilities; 
 
 SELECT *  
 FROM facilities
 WHERE country IS NULL;
+--No null values
 
 SELECT * FROM facilities
 WHERE country = 'United States'
@@ -110,6 +136,12 @@ SELECT * FROM designs;
 
 SELECT DISTINCT primary_purpose 
 FROM designs; 
+
+SELECT primary_purpose 
+FROM designs
+WHERE primary_purpose IS NULL;
+
+--Null values are present
 --Type intervention
 
 SELECT * FROM outcome_counts;
@@ -117,506 +149,588 @@ SELECT * FROM outcome_counts;
 SELECT count 
 FROM outcome_counts 
 LIMIT 10; 
---Number of participants participants
 
-SELECT event_type, subjects_affected
-FROM reported_events LIMIT 30; 
+SELECT count 
+FROM outcome_counts
+WHERE count IS NULL;
+
+SELECT * FROM outcome_counts
+WHERE nct_id = 'NCT01925170';
+--Test on specific id to check for repeating results
+
+/*Number of participants per study
+	There are null values
+	Study ID is present on different count results
+	I would communicate with supervisor to determine if this is due to different cohorts per study
+		carrying that assumption moving forward */
+
+SELECT * 
+FROM reported_events
+LIMIT 30;
+
+SELECT event_type
+	, subjects_affected
+FROM reported_events 
+LIMIT 30; 
+
+SELECT subjects_affected 
+FROM reported_events
+WHERE subjects_affected IS NULL;
+
 --All observed adverse events and outcomes recorded for each trial
+--Null values present
 
-SELECT * FROM outcome_measurements 
+SELECT * 
+FROM outcome_measurements 
 LIMIT 10;
 
-SELECT DISTINCT param_type FROM outcome_measurements; 
+SELECT DISTINCT param_type 
+FROM outcome_measurements; 
 
-SELECT nct_id, param_value, description
+SELECT DISTINCT category 
+FROM outcome_measurements; 
+
+SELECT nct_id
+	, param_value
+	, description
+	, category
 FROM outcome_measurements
-WHERE param_value IS NOT NULL
-AND param_type = 'Count of Participants'
-AND NOT param_value = 'NA'
+WHERE param_type = 'Count of Participants'
+	AND param_value IS NOT NULL
+	AND NOT param_value = 'NA'
+	AND category ILIKE 'complete response'
 ORDER BY param_value DESC;
---Most patients with a complete response to the intervention of study
 
+SELECT DISTINCT category
+FROM outcome_measurements
+WHERE (category ILIKE '%complete response%'
+	   OR category LIKE '%CR%'
+	  	OR category LIKE '%CRi%')
+	   AND category NOT ILIKE '%CRu%'
+	   AND category NOT ILIKE '%nCR%'
+	   AND category NOT ILIKE '%CRu%'
+	   AND category NOT ILIKE '%failure%'
+	   AND category NOT ILIKE '%CRi%'
+	   AND category NOT ILIKE '%unconfirmed%'
+	   AND category NOT LIKE '%A__%'
+	   AND category NOT LIKE '%B__%'
+	   AND category NOT LIKE '%L__%'
+	   AND category NOT LIKE '%N__%'
+	   AND category NOT ILIKE '%not%'
+	   AND category NOT ILIKE '%Discontinued%'
+	   AND category NOT ILIKE '%incomplete%'
+	   AND category NOT ILIKE '%without%'
+	   AND category NOT ILIKE '%negative%'
+	   AND category NOT ILIKE '%non-%'
+	   AND category NOT ILIKE '%no CR%'
+	   AND category NOT ILIKE '%no KS%'
+	   AND category NOT ILIKE '%influenza%'
+	   AND category NOT LIKE '%CTS%';
+
+--Participants/patients with a complete response to the intervention of study
+--There are several values for complete response which have to be taken into consideration
 
 --1.1 Data Exploration
-SELECT * FROM studies
-WHERE study_type = 'Interventional' 
+SELECT * 
+FROM studies
+WHERE (official_title LIKE '%ancer%'
+	OR official_title LIKE '%arcinoma%')
+	AND study_type = 'Interventional' 
 	AND overall_status = 'Completed'
 	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%ancer%'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%arcinoma%' 
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%ancer%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%arcinoma%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-ORDER BY nct_id; 
+	AND (completion_date <= CURRENT_DATE 
+		 OR completion_date_type IS NULL)
+ORDER BY nct_id;
 
 SELECT COUNT(*) AS total_cancer_studies 
 FROM studies
-WHERE study_type = 'Interventional' 
+	WHERE (official_title LIKE '%ancer%'
+	OR official_title LIKE '%arcinoma%')
+	AND study_type = 'Interventional' 
 	AND overall_status = 'Completed'
 	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%ancer%'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%arcinoma%' 
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%ancer%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%arcinoma%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'; 
---12408 cancer studies in database
+	AND (completion_date <= CURRENT_DATE 
+		 OR completion_date_type IS NULL); 
+--12408 completed cancer-related cancer studies in database
 
-SELECT s.nct_id, c.name AS type_of_cancer
-FROM (SELECT * FROM studies
-	WHERE study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%ancer%'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%arcinoma%' 
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%ancer%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%arcinoma%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual') AS s
+SELECT s.nct_id
+	, c.name AS type_of_cancer
+FROM (SELECT * 
+	  FROM studies
+		WHERE (official_title LIKE '%ancer%'
+		OR official_title LIKE '%arcinoma%')
+		AND study_type = 'Interventional' 
+		AND overall_status = 'Completed'
+		AND completion_date_type = 'Actual'
+		AND (completion_date <= CURRENT_DATE 
+		 OR completion_date_type IS NULL)) AS s
 INNER JOIN conditions AS c 
 	ON c.nct_id = s.nct_id
 	WHERE c.name LIKE '%ancer%'
-	OR c.name LIKE '%arcinoma%'; 
---16045 cancer conditions; multiple types (cohort) per study
+	OR c.name LIKE '%arcinoma%'
+ORDER BY s.nct_id; 
+--16045 cancer conditions; multiple types of cancer per study
 
 SELECT e.criteria AS inclusion_criteria
-FROM (SELECT * FROM studies
-	WHERE study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%ancer%'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%arcinoma%' 
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%ancer%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%arcinoma%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual') AS s
+FROM (SELECT * 
+	  FROM studies
+		WHERE (official_title LIKE '%ancer%'
+		OR official_title LIKE '%arcinoma%')
+		AND study_type = 'Interventional' 
+		AND overall_status = 'Completed'
+		AND completion_date_type = 'Actual'
+		AND (completion_date <= CURRENT_DATE 
+		 OR completion_date_type IS NULL)) AS s
 INNER JOIN eligibilities AS e 
 	ON e.nct_id = s.nct_id; 
---#inclution/exclusion criteria	
+--inclution/exclusion criteria of studies matching query parameters 
 
-SELECT s.nct_id, s.source,
-facilities.country, facilities.state
-FROM (SELECT * FROM studies
-	WHERE study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%ancer%'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%arcinoma%' 
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%ancer%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%arcinoma%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual') AS s, facilities 
+SELECT s.nct_id
+	, s.source
+	, facilities.country
+	, facilities.state
+FROM (SELECT * 
+	  FROM studies
+		WHERE (official_title LIKE '%ancer%'
+		OR official_title LIKE '%arcinoma%')
+		AND study_type = 'Interventional' 
+		AND overall_status = 'Completed'
+		AND completion_date_type = 'Actual'
+		AND (completion_date <= CURRENT_DATE 
+		 OR completion_date_type IS NULL)) AS s
+		 , facilities 
 WHERE facilities.nct_id = s.nct_id 
 	AND facilities.country = 'United States'
 	ORDER BY facilities.state; 
---Locations by state
+--Locations by state (United States)
+--I would communicate with supervisor to determine if there's interest in other locations outside the U.S
+
+SELECT s.nct_id AS study_id
+	, d.primary_purpose AS type_of_intervention
+FROM (SELECT * 
+	  FROM studies
+		WHERE (official_title LIKE '%ancer%'
+		OR official_title LIKE '%arcinoma%')
+		AND study_type = 'Interventional' 
+		AND overall_status = 'Completed'
+		AND completion_date_type = 'Actual'
+		AND (completion_date <= CURRENT_DATE 
+		 OR completion_date_type IS NULL)) AS s
+INNER JOIN designs AS d 
+	ON d.nct_id = s.nct_id; 
 
 SELECT DISTINCT d.primary_purpose AS types_of_intervention
-FROM (SELECT * FROM studies
-	WHERE study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%ancer%'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%arcinoma%' 
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%ancer%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%arcinoma%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual') AS s
+FROM (SELECT * 
+	  FROM studies
+		WHERE (official_title LIKE '%ancer%'
+		OR official_title LIKE '%arcinoma%')
+		AND study_type = 'Interventional' 
+		AND overall_status = 'Completed'
+		AND completion_date_type = 'Actual'
+		AND (completion_date <= CURRENT_DATE 
+		 OR completion_date_type IS NULL)) AS s
 INNER JOIN designs AS d 
 	ON d.nct_id = s.nct_id;
 	
---#Intervention of study
---"Diagnostic" = interventions >= 1 being evaluated for identifying cancer
---"Prevention" = interventions >= 1 being assessed for preventing the development of cancer
---"Supportive Care" = interventions >= 1 evaluated for maximizing comfort, minimizing side effects, or mitigating against a decline in the participant's health or function.
---"Treatment" = interventions >= 1 being evaluated for treating cancer
---"Other" = None of the other options applies.
+/* Intervention of study based on documentation provited
+	"Diagnostic" = interventions >= 1 being evaluated for identifying cancer
+	"Prevention" = interventions >= 1 being assessed for preventing the development of cancer
+	"Supportive Care" = interventions >= 1 evaluated for maximizing comfort, minimizing side effects, or mitigating against a decline in the participant's health or function.
+	"Treatment" = interventions >= 1 being evaluated for treating cancer
+	"Other" = None of the other options applies. */
 
-SELECT s.nct_id AS study_id, 
-	d.primary_purpose AS type_of_intervention
-FROM (SELECT * FROM studies
-	WHERE study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%ancer%'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%arcinoma%' 
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%ancer%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%arcinoma%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual') AS s
-INNER JOIN designs AS d 
-	ON d.nct_id = s.nct_id; 
---Types of interventions
-
-SELECT s.nct_id AS study_id, 
-	o.count AS number_of_participants
-FROM (SELECT * FROM studies
-	WHERE study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%ancer%'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%arcinoma%' 
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%ancer%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%arcinoma%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual')AS s 
+SELECT s.nct_id
+	, o.count AS number_of_participants
+FROM (SELECT * 
+	  FROM studies
+		WHERE (official_title LIKE '%ancer%'
+		OR official_title LIKE '%arcinoma%')
+		AND study_type = 'Interventional' 
+		AND overall_status = 'Completed'
+		AND completion_date_type = 'Actual'
+		AND (completion_date <= CURRENT_DATE 
+		 OR completion_date_type IS NULL))AS s 
 INNER JOIN outcome_counts AS o
 	ON o.nct_id = s.nct_id
 	GROUP BY s.nct_id , o.count
 	ORDER BY o.count DESC; 
+--Participants in studies matching query parameters
 
-SELECT sum(o.count) AS total_number_of_participants
-FROM (SELECT * FROM studies
-	WHERE study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%ancer%'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%arcinoma%' 
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%ancer%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%arcinoma%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual')AS s 
-INNER JOIN outcome_counts AS o
-	ON o.nct_id = s.nct_id; 
---5849959 total participants in all studies
+SELECT * 
+FROM reported_events 
+LIMIT 10; 
 
-SELECT * FROM reported_events LIMIT 10; 
-
-SELECT s.nct_id, reported_events.event_type, 
-	reported_events.subjects_affected,
-	reported_events.adverse_event_term
-FROM (SELECT * FROM studies
-	WHERE study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%ancer%'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%arcinoma%' 
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%ancer%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%arcinoma%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual') AS s
+SELECT s.nct_id
+	, reported_events.event_type
+	, reported_events.subjects_affected
+	, reported_events.adverse_event_term
+FROM (SELECT * 
+	  FROM studies
+		WHERE (official_title LIKE '%ancer%'
+		OR official_title LIKE '%arcinoma%')
+		AND study_type = 'Interventional' 
+		AND overall_status = 'Completed'
+		AND completion_date_type = 'Actual'
+		AND (completion_date <= CURRENT_DATE 
+		 OR completion_date_type IS NULL)) AS s
 INNER JOIN reported_events 
 	ON reported_events.nct_id = s.nct_id
 	WHERE subjects_affected IS NOT NULL
 	ORDER BY subjects_affected DESC;
---Reported adverse events and outcomes recorded 
+--Reported adverse events, participants affected, and outcomes recorded 
 
---1.2 Data Exploration; joins
-
+--1.2 Data Exploration & manipulation; joins
+WITH state_studies 
+	AS ( SELECT nct_id
+	   ,  string_agg(state, ',') AS state
+	   , string_agg(country, ',') AS country
+   FROM facilities 
+   GROUP BY nct_id)
+   , institution_studies 
+	AS(SELECT nct_id
+	   , string_agg(source, ',') AS institution 
+   FROM studies 
+   GROUP BY nct_id)
+   , cancer_conditions
+	AS (SELECT nct_id
+		, string_agg(name, ',') AS type_of_cancer 
+   FROM conditions 
+   GROUP BY nct_id)
+   , types_of_intervention
+AS ( SELECT nct_id
+   , string_agg(primary_purpose, ',') AS type_of_intervention 
+   FROM designs 
+   GROUP BY nct_id)
+   , total_number_participants
+AS ( SELECT nct_id
+   , (sum(count)) AS total_number_of_participants 
+   FROM outcome_counts 
+   GROUP BY nct_id)
 SELECT s.nct_id, 
-	c.name AS cancer_condition, 
-	e.criteria AS inclusion_criteria, 
-	f.country AS country,
-	f.state AS state, 
-	s.source AS institution, 
-	d.primary_purpose AS type_of_intervention,
-	o.count AS total_number_of_participants
-FROM (SELECT * FROM studies
-	WHERE study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%ancer%'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%arcinoma%' 
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%ancer%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%arcinoma%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual') AS s
-INNER JOIN conditions AS c 
-	ON c.nct_id = s.nct_id
-INNER JOIN eligibilities as e 
+	cc.type_of_cancer AS type_of_cancer
+	, e.criteria AS inclusion_criteria
+	, ss.country AS country
+	, ss.state AS state
+	, i.institution AS institution
+	, ti.type_of_intervention AS type_of_intervention
+	, tp.total_number_of_participants AS total_number_of_participants
+FROM (SELECT * 
+	  FROM studies
+		WHERE (official_title LIKE '%ancer%'
+		OR official_title LIKE '%arcinoma%')
+		AND study_type = 'Interventional' 
+		AND overall_status = 'Completed'
+		AND completion_date_type = 'Actual'
+		AND (completion_date <= CURRENT_DATE 
+		 OR completion_date_type IS NULL)) AS s
+INNER JOIN cancer_conditions AS cc 
+	ON cc.nct_id = s.nct_id
+INNER JOIN eligibilities AS e 
 	ON e.nct_id = s.nct_id
-INNER JOIN facilities as f 
-	ON f.nct_id = s.nct_id 
-INNER JOIN designs AS d 
-	ON d.nct_id = s.nct_id
-INNER JOIN outcome_counts AS o 
-	ON o.nct_id = s.nct_id
-WHERE f.country = 'United States'
-	AND o.count IS NOT NULL
-	AND c.name LIKE '%ancer%'
-	OR o.count IS NOT NULL
-	AND c.name LIKE '%arcinoma%'
-GROUP BY o.count,
-		s.nct_id,
-		c.name,
-		e.criteria,
-		f.country,
-		f.state,
-		s.source,
-		d.primary_purpose
-ORDER BY o.count DESC
+INNER JOIN state_studies AS ss 
+	ON ss.nct_id = s.nct_id 
+INNER JOIN types_of_intervention AS ti 
+	ON ti.nct_id = s.nct_id
+INNER JOIN total_number_participants AS tp 
+	ON tp.nct_id = s.nct_id
+INNER JOIN institution_studies AS i
+	ON i.nct_id = s.nct_id
+WHERE (cc.type_of_cancer LIKE '%ancer%' 
+	OR cc.type_of_cancer LIKE '%arcinoma%')
+	AND ss.country = 'United States'
+GROUP BY s.nct_id
+	, ss.state
+	, ti.type_of_intervention
+	, i.institution,
+	, cc.type_of_cancer
+	, e.criteria
+	, ss.country
+	, tp.total_number_of_participants
+HAVING tp.count IS NOT NULL	
+ORDER BY tp.count DESC, state
 	LIMIT 10; 
+
+--Aggregating different variables to group by nct_id more neatly based on previous assumptions
 
 --2.1 Preparing data; creating general view
 
 CREATE VIEW cancer_studies_general_view AS
-SELECT s.nct_id, 
-	c.name AS cancer_condition, 
-	e.criteria AS inclusion_criteria, 
-	f.country AS country,
-	f.state AS state, 
-	s.source AS institution, 
-	d.primary_purpose AS type_of_intervention,
-	o.count AS total_number_of_participants
+WITH state_studies 
+	AS ( SELECT nct_id  
+   , string_agg(state, ',') AS state 
+   , string_agg(country, ',') AS country
+   FROM facilities 
+   GROUP BY nct_id)
+	, institution_studies 
+	AS ( SELECT nct_id  
+   	, string_agg(source, ',') AS institution 
+   FROM studies 
+   GROUP BY nct_id)
+	, cancer_conditions
+	AS ( SELECT nct_id  
+   	, string_agg(name, ',') AS type_of_cancer 
+   FROM conditions 
+   GROUP BY nct_id)
+	, types_of_intervention
+AS ( SELECT nct_id  
+   , string_agg(primary_purpose, ',') AS type_of_intervention 
+   FROM designs 
+   GROUP BY nct_id)
+	, total_number_participants
+AS ( SELECT nct_id  
+   	, (sum(count)) AS total_number_of_participants 
+   FROM outcome_counts 
+   GROUP BY nct_id)
+SELECT s.nct_id 
+	, cc.type_of_cancer AS type_of_cancer 
+	, e.criteria AS inclusion_criteria 
+	, ss.country AS country
+	, ss.state AS state
+	, i.institution AS institution 
+	, ti.type_of_intervention AS type_of_intervention
+	, tp.total_number_of_participants AS total_number_of_participants
 FROM (SELECT * FROM studies
-	WHERE study_type = 'Interventional' 
+	WHERE (official_title LIKE '%ancer%'
+	OR official_title LIKE '%arcinoma%')
+	AND study_type = 'Interventional' 
 	AND overall_status = 'Completed'
 	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%ancer%'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-	AND completion_date <= CURRENT_DATE
-	AND official_title LIKE '%arcinoma%' 
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%ancer%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual'
-		OR study_type = 'Interventional' 
-	AND overall_status = 'Completed'
-	AND completion_date_type IS NULL
-	AND official_title LIKE '%arcinoma%'
-	AND study_type = 'Interventional'
-	AND overall_status = 'Completed'
-	AND completion_date_type = 'Actual') AS s
-INNER JOIN conditions AS c 
-	ON c.nct_id = s.nct_id
-INNER JOIN eligibilities as e 
+	AND (completion_date <= CURRENT_DATE 
+		 OR completion_date_type IS NULL)) AS s
+INNER JOIN cancer_conditions AS cc 
+	ON cc.nct_id = s.nct_id
+INNER JOIN eligibilities AS e 
 	ON e.nct_id = s.nct_id
-INNER JOIN facilities as f 
-	ON f.nct_id = s.nct_id 
-INNER JOIN designs AS d 
-	ON d.nct_id = s.nct_id
-INNER JOIN outcome_counts AS o 
-	ON o.nct_id = s.nct_id
-WHERE f.country = 'United States'
-	AND o.count IS NOT NULL
-	AND c.name LIKE '%ancer%'
-	OR o.count IS NOT NULL
-	AND c.name LIKE '%arcinoma%'
-GROUP BY o.count,
-		s.nct_id,
-		c.name,
-		e.criteria,
-		f.country,
-		f.state,
-		s.source,
-		d.primary_purpose;
+INNER JOIN state_studies AS ss 
+	ON ss.nct_id = s.nct_id 
+INNER JOIN types_of_intervention AS ti 
+	ON ti.nct_id = s.nct_id
+INNER JOIN total_number_participants AS tp 
+	ON tp.nct_id = s.nct_id
+INNER JOIN institution_studies AS i
+	ON i.nct_id = s.nct_id
+WHERE (cc.type_of_cancer LIKE '%ancer%' 
+	OR cc.type_of_cancer LIKE '%arcinoma%')
+	AND ss.country = 'United States'
+GROUP BY s.nct_id
+		, ss.state
+		, ti.type_of_intervention
+		, i.institution
+		, cc.type_of_cancer
+		, e.criteria
+		, ss.country
+		, tp.total_number_of_participants
+HAVING tp.count IS NOT NULL;
+		
+
+SELECT * 
+FROM cancer_studies_general_view
+LIMIT 40;
+--No duplicates are apparent & variables of interest are included
 
 --2.2 Preparing data; view for all observed adverse events and outcomes recorded for each trial
 	--Reported_events table subjects_affected, evente_count columns 
 
+SELECT * 
+FROM reported_events 
+LIMIT 10;
+
+SELECT DISTINCT adverse_event_term 
+FROM reported_events;
+
 CREATE VIEW adverse_events_outcomes AS
-SELECT cs.nct_id, rp.event_type AS adverse_outcome, 
-		rp.subjects_affected AS participants_affected
-FROM reported_events AS rp
+WITH adverse_outcomes_in_participants 
+	AS ( SELECT nct_id  
+   	, string_agg(adverse_event_term, ',') AS adverse_outcome 
+   	, sum(subjects_affected) AS participants_affected
+   FROM reported_events 
+   GROUP BY nct_id)
+SELECT cs.nct_id
+	, rp.adverse_outcome AS adverse_outcome 
+	, rp.participants_affected AS participants_affected
+FROM adverse_outcomes_in_participants AS rp
 INNER JOIN cancer_studies_general_view AS cs 
 	ON rp.nct_id = cs.nct_id
-GROUP BY cs.nct_id, 
-	rp.subjects_affected, 
-	rp.event_type;
+GROUP BY cs.nct_id 
+	, rp.adverse_outcome 
+	, rp.participants_affected;
 
-SELECT * FROM adverse_events_outcomes
-LIMIT 10;
+SELECT * 
+FROM adverse_events_outcomes
+LIMIT 40;
+--No duplicates are apparent & variables of interest are included
+
 
 --2.3 Preparing data; trial that had the most patients with a complete response to the intervention of study
 
-SELECT cs.nct_id, om.description,
-	om.units, om.param_value
-FROM outcome_measurements AS om,
-	cancer_studies_general_view AS cs
+SELECT * 
+FROM outcome_measurements
+LIMIT 10;
+
+SELECT cs.nct_id
+	, om.category
+	, om.units
+	, om.param_value
+	, om.param_type
+FROM outcome_measurements AS om
+INNER JOIN cancer_studies_general_view AS cs
+	ON om.nct_id = cs.nct_id
+ORDER BY om.param_value DESC
 LIMIT 5;
 
-SELECT nct_id, category, units, param_type, 
-param_value
-FROM outcome_measurements
-WHERE category ILIKE 'complete response'
-	AND param_value != 'NA'
-ORDER BY param_value DESC
-LIMIT 20; 
+WITH 
+value_participant_count
+AS ( SELECT nct_id,  
+   (count(param_value)) AS participant_count 
+   FROM outcome_measurements AS om
+   WHERE (om.param_value != 'NA'
+	   OR om.param_value IS NOT NULL)
+   AND param_type = 'Count of Participants'
+   GROUP BY nct_id)
+, participants_complete_response
+AS ( SELECT nct_id  
+   , string_agg(category, ',') AS complete_response 
+   FROM outcome_measurements 
+   WHERE (category ILIKE '%complete response%'
+	   OR category LIKE '%CR%'
+	  	OR category LIKE '%CRi%')
+	   AND category NOT ILIKE '%CRu%'
+	   AND category NOT ILIKE '%nCR%'
+	   AND category NOT ILIKE '%CRu%'
+	   AND category NOT ILIKE '%failure%'
+	   AND category NOT ILIKE '%CRi%'
+	   AND category NOT ILIKE '%unconfirmed%'
+	   AND category NOT LIKE '%A__%'
+	   AND category NOT LIKE '%B__%'
+	   AND category NOT LIKE '%L__%'
+	   AND category NOT LIKE '%N__%'
+	   AND category NOT ILIKE '%not%'
+	   AND category NOT ILIKE '%Discontinued%'
+	   AND category NOT ILIKE '%incomplete%'
+	   AND category NOT ILIKE '%without%'
+	   AND category NOT ILIKE '%negative%'
+	   AND category NOT ILIKE '%non-%'
+	   AND category NOT ILIKE '%no CR%'
+	   AND category NOT ILIKE '%no KS%'
+	   AND category NOT ILIKE '%influenza%'
+	   AND category NOT LIKE '%CTS%'
+    GROUP BY nct_id)
+SELECT cs.nct_id 
+	, pcr.complete_response
+	, om.param_type 
+	, vpc.participant_count
+FROM outcome_measurements AS om
+INNER JOIN cancer_studies_general_view AS cs 
+	ON om.nct_id = cs.nct_id
+INNER JOIN value_participant_count AS vpc
+	ON vpc.nct_id = cs.nct_id
+INNER JOIN participants_complete_response AS pcr
+	ON pcr.nct_id = cs.nct_id
+	WHERE om.param_type = 'Count of Participants'
+GROUP BY cs.nct_id 
+	, pcr.complete_response
+	, om.param_type
+	, vpc.participant_count
+ORDER BY vpc.participant_count DESC; 
 
+
+WITH 
+value_participant_count
+AS ( SELECT nct_id,  
+   (count(param_value)) AS participant_count 
+   FROM outcome_measurements AS om
+   WHERE (om.param_value != 'NA'
+	   OR om.param_value IS NOT NULL)
+   AND param_type = 'Count of Participants'
+   GROUP BY nct_id)
+, participants_complete_response
+AS ( SELECT nct_id  
+   , string_agg(category, ',') AS complete_response 
+   FROM outcome_measurements 
+   WHERE (category ILIKE '%complete response%'
+	   OR category LIKE '%CR%'
+	  	OR category LIKE '%CRi%')
+	   AND category NOT ILIKE '%CRu%'
+	   AND category NOT ILIKE '%nCR%'
+	   AND category NOT ILIKE '%CRu%'
+	   AND category NOT ILIKE '%failure%'
+	   AND category NOT ILIKE '%CRi%'
+	   AND category NOT ILIKE '%unconfirmed%'
+	   AND category NOT LIKE '%A__%'
+	   AND category NOT LIKE '%B__%'
+	   AND category NOT LIKE '%L__%'
+	   AND category NOT LIKE '%N__%'
+	   AND category NOT ILIKE '%not%'
+	   AND category NOT ILIKE '%Discontinued%'
+	   AND category NOT ILIKE '%incomplete%'
+	   AND category NOT ILIKE '%without%'
+	   AND category NOT ILIKE '%negative%'
+	   AND category NOT ILIKE '%non-%'
+	   AND category NOT ILIKE '%no CR%'
+	   AND category NOT ILIKE '%no KS%'
+	   AND category NOT ILIKE '%influenza%'
+	   AND category NOT LIKE '%CTS%'
+    GROUP BY nct_id)
+SELECT cs.nct_id 
+	, pcr.complete_response
+	, om.param_type 
+	, vpc.participant_count
+FROM outcome_measurements AS om
+INNER JOIN cancer_studies_general_view AS cs 
+	ON om.nct_id = cs.nct_id
+INNER JOIN value_participant_count AS vpc
+	ON vpc.nct_id = cs.nct_id
+INNER JOIN participants_complete_response AS pcr
+	ON pcr.nct_id = cs.nct_id
+	WHERE om.param_type = 'Count of Participants'
+	AND cs.nct_id = 'NCT00820170'
+GROUP BY cs.nct_id 
+	, pcr.complete_response
+	, om.param_type
+	, vpc.participant_count
+ORDER BY vpc.participant_count DESC; 
+
+/*Study NCT00820170 appears to be the study with most patients with a complete response
+	I conducted a separate query for that nct_id, and it doesn't seem
+	there are duplicate values. 
+	I would double-check with the supervisor to be certain we are gathering relevant results*/
 
 --2.4 Preparing data; trials that started after 2005 and ended before 2010
 
 SELECT cs.nct_id, studies.start_date,
 	studies.completion_date 
 FROM studies 
-JOIN cancer_studies_general_view AS cs 
+INNER JOIN cancer_studies_general_view AS cs 
 	ON studies.nct_id = cs.nct_id
-	WHERE studies.start_date >= '2006-01-01'
-	AND studies.completion_date <= '2010-01-01'
+	WHERE studies.start_date > '2005-12-31'
+	AND studies.completion_date < '2010-01-01'
 	ORDER BY studies.start_date;
 	
+SELECT count(*) AS studies_between_05_and_10
+FROM studies 
+INNER JOIN cancer_studies_general_view AS cs 
+	ON studies.nct_id = cs.nct_id
+	WHERE studies.start_date > '2005-12-31'
+	AND studies.completion_date < '2010-01-01';
+--32 studies between 2005-2010	
+
 --2.5 Preparing data; Distribution of trials by state
 
-SELECT DISTINCT(state) FROM cancer_studies_general_view; 
+SELECT DISTINCT(state) 
+FROM cancer_studies_general_view;
+
+SELECT state
+	, count(*)
+FROM cancer_studies_general_view
+GROUP BY state
+ORDER BY count DESC;
+
+--Distribution of trials by state
+	--Texas is the state with the most amount of cancer trials with 114 studies
+
+/*If I had more time, I would:
+	Clarify which problems we are trying to solve with this analysis
+		and which results would be relevant
+	Ensure assumptions are correct by communicating with the team
+	Ensure what are we using this analysis for to prepare data visualization for presentation and understanding 
+	Ensure the questions and results are what we are looking for*/
