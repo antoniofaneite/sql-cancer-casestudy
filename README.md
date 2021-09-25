@@ -1,7 +1,8 @@
 # sql-cancer-casestudy
-SQL Case Study
+----
+#SQL Case Study
 
-Using the publicly available Aggregated Analysis of ClinicalTrails.gov dataset (AACT) please download this
+##Using the publicly available Aggregated Analysis of ClinicalTrails.gov dataset (AACT) please download this
 data and host it in a local postgres database to complete the following. Please complete each task using SQL.
   https://aact.ctti-clinicaltrials.org/snapshots
 
@@ -30,7 +31,7 @@ Total participants in the study
   b. SQL code used to write the views and questions specified above
   c. If you are unable to complete any of the above, a description of what you attempted and what you would attempt next.
 
-Please include any additional code used to familiarize yourself with the data, a short summary of your approach (a few sentences will suffice), and any questions you encountered along the way that, given more time, you would have attempted to answer with the data.
+##Please include any additional code used to familiarize yourself with the data, a short summary of your approach (a few sentences will suffice), and any questions you encountered along the way that, given more time, you would have attempted to answer with the data.
 
 
 
