@@ -9,12 +9,18 @@ data and host it in a local postgres database to complete the following. Please 
 
 ### 1. Create a view of all prospective (interventional) cancer-related clinical trials that are completed (no longer actively recruiting and not prematurely terminated) Including:  
 
-Markup : *nct_id
+ Markup : * Bullet list
+              * Nested bullet
+                  * Sub-nested bullet etc
+          * Bullet list item 2  
+
+
+Markup : - nct_id
          *The cancer condition
-         * Inclusion/exclusion criteria for the trial
-         * Location of the trial
-         * Intervention of study
-         * Total participants in the study 
+         *Inclusion/exclusion criteria for the trial
+         *Location of the trial
+         *Intervention of study
+         *Total participants in the study 
 
 ----
 
